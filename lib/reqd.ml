@@ -192,6 +192,7 @@ let respond_with_upgrade ?reason t headers =
   match t.response_state with
   | Waiting when_done_waiting ->
     let response = Response.create ?reason ~headers `Switching_protocols in
+    Writer.write_response t.writer response;
     t.response_state <- Upgrade response;
     Body.close_reader t.request_body;
     done_waiting when_done_waiting
@@ -262,7 +263,10 @@ let persistent_connection t =
 
 let input_state t : Input_state.t =
   match t.response_state with
-  | Upgrade _ -> Upgrade
+  | Upgrade _ ->
+    if Writer.has_pending_output t.writer
+    then Wait
+    else Upgrade
   | Waiting _
   | Complete _
   | Streaming _ ->
@@ -274,7 +278,10 @@ let input_state t : Input_state.t =
 let output_state t : Output_state.t =
   match t.response_state with
   | Complete _ -> Complete
-  | Upgrade _  -> Upgrade
+  | Upgrade _  ->
+    if Writer.has_pending_output t.writer
+    then Ready
+    else Upgrade
   | Waiting _  -> Wait
   | Streaming(_, response_body) ->
     if Body.has_pending_output response_body

@@ -162,6 +162,9 @@ module Writer = struct
   let is_closed t =
     Faraday.is_closed t.encoder
 
+  let has_pending_output t =
+    Faraday.has_pending_output t.encoder
+
   let drained_bytes t =
     t.drained_bytes
 

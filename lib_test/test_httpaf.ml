@@ -345,11 +345,6 @@ module Server_connection = struct
       `Read (next_read_operation t);
   ;;
 
-  let read_upgrade t =
-    Alcotest.check read_operation "Reader is requesting an upgrade"
-      `Upgrade (next_read_operation t);
-  ;;
-
   let reader_yielded t =
     Alcotest.check read_operation "Reader is in a yield state"
       `Yield (next_read_operation t);
@@ -372,10 +367,10 @@ module Server_connection = struct
     report_write_result t `Closed;
   ;;
 
-  let write_upgrade ?(msg="upgrade written") t request response =
-    Alcotest.check write_operation msg
-      (`Upgrade(request, response))
-      (next_write_operation t);
+  let write_upgrade ?(msg="upgrade written") t =
+    Alcotest.(check (option string)) msg
+      (Some "HTTP/1.1 101 Switching Protocols\r\n\r\n")
+      (next_write_operation t |> Write_operation.to_write_as_string);
   ;;
 
   let writer_yielded t =
@@ -812,10 +807,9 @@ Accept-Language: en-US,en;q=0.5\r\n\r\n";
     in
     let t = create ~error_handler request_handler in
     let request = Request.create `GET "/" ~headers:(Headers.of_list [ "Connection", "upgrade" ]) in
-    let response = Response.create `Switching_protocols in
     read_request t request;
-    write_upgrade t request response;
-    read_upgrade t;
+    write_upgrade t;
+    reader_yielded t;
   ;;
 
   let tests =
